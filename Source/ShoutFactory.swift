@@ -5,12 +5,12 @@ let shoutView = ShoutView()
 public class ShoutView: UIView {
 
   public struct Dimensions {
-    public static let indicatorHeight: CGFloat = 6
-    public static let indicatorWidth: CGFloat = 50
-    public static let imageSize: CGFloat = 48
-    public static let imageOffset: CGFloat = 18
-    public static var height: CGFloat = UIApplication.sharedApplication().statusBarHidden ? 70 : 80
-    public static var textOffset: CGFloat = 75
+    public static var indicatorHeight: CGFloat = 0
+    public static var indicatorWidth: CGFloat = 0
+    public static var imageSize: CGFloat = 20
+    public static var imageOffset: CGFloat = 16
+    public static var height: CGFloat = UIApplication.sharedApplication().statusBarHidden ? 47 : 57
+    public static var textOffset: CGFloat = 53
   }
 
   public private(set) lazy var backgroundView: UIView = {
@@ -18,6 +18,7 @@ public class ShoutView: UIView {
     view.backgroundColor = ColorList.Shout.background
     view.alpha = 0.98
     view.clipsToBounds = true
+    view.layer.cornerRadius = 10
 
     return view
     }()
@@ -37,12 +38,16 @@ public class ShoutView: UIView {
 
     return view
     }()
+    
+    public private(set) lazy var wrapperView: UIView = {
+        let wrapperView = UIView()
+        return wrapperView
+    }()
 
   public private(set) lazy var imageView: UIImageView = {
     let imageView = UIImageView()
-    imageView.layer.cornerRadius = Dimensions.imageSize / 2
     imageView.clipsToBounds = true
-    imageView.contentMode = .ScaleAspectFill
+    imageView.contentMode = .ScaleAspectFit
 
     return imageView
     }()
@@ -91,8 +96,12 @@ public class ShoutView: UIView {
     super.init(frame: frame)
 
     addSubview(backgroundView)
-    [indicatorView, imageView, titleLabel, subtitleLabel, gestureContainer].forEach {
+    [indicatorView, wrapperView, gestureContainer].forEach {
       backgroundView.addSubview($0) }
+    
+    [imageView, titleLabel, subtitleLabel].forEach {
+        wrapperView.addSubview($0)
+    }
 
     clipsToBounds = false
     userInteractionEnabled = true
@@ -118,7 +127,7 @@ public class ShoutView: UIView {
   // MARK: - Configuration
 
   public func craft(announcement: Announcement, to: UIViewController, completion: (() -> ())?) {
-    Dimensions.height = UIApplication.sharedApplication().statusBarHidden ? 70 : 80
+    Dimensions.height = UIApplication.sharedApplication().statusBarHidden ? 47 : 57
 
     panGestureActive = false
     shouldSilent = false
@@ -142,46 +151,49 @@ public class ShoutView: UIView {
   }
 
   public func shout(to controller: UIViewController) {
-    let width = UIScreen.mainScreen().bounds.width
+    let width = UIScreen.mainScreen().bounds.width - 20
     controller.view.addSubview(self)
-
-    frame = CGRect(x: 0, y: 0, width: width, height: 0)
-    backgroundView.frame = CGRect(x: 0, y: 0, width: width, height: 0)
+    
+    backgroundView.alpha = 0
+    
+    frame = CGRect(x: 5, y: 0, width: width, height: Dimensions.height)
+    backgroundView.frame = CGRect(x: 5, y: 0, width: width, height: Dimensions.height)
 
     UIView.animateWithDuration(0.35, animations: {
-      self.frame.size.height = Dimensions.height
-      self.backgroundView.frame.size.height = self.frame.height
+      self.backgroundView.alpha = 1
     })
   }
 
   // MARK: - Setup
 
   public func setupFrames() {
-    let totalWidth = UIScreen.mainScreen().bounds.width
+    let totalWidth = UIScreen.mainScreen().bounds.width - 20
     let offset: CGFloat = UIApplication.sharedApplication().statusBarHidden ? 2.5 : 5
-    let textOffsetX: CGFloat = imageView.image != nil ? Dimensions.textOffset : 18
+//    let textOffsetX: CGFloat = imageView.image != nil ? Dimensions.textOffset : 18
     let imageSize: CGFloat = imageView.image != nil ? Dimensions.imageSize : 0
+    let distanceFromImageToText: CGFloat = 10
 
     backgroundView.frame.size = CGSize(width: totalWidth, height: Dimensions.height)
     gestureContainer.frame = CGRect(x: 0, y: Dimensions.height - 20, width: totalWidth, height: 20)
     indicatorView.frame = CGRect(x: (totalWidth - Dimensions.indicatorWidth) / 2,
       y: Dimensions.height - Dimensions.indicatorHeight - 5, width: Dimensions.indicatorWidth, height: Dimensions.indicatorHeight)
-
-    imageView.frame = CGRect(x: Dimensions.imageOffset, y: (Dimensions.height - imageSize) / 2 + offset,
-      width: imageSize, height: imageSize)
-
+    
     [titleLabel, subtitleLabel].forEach {
-      $0.frame.size.width = totalWidth - imageSize - (Dimensions.imageOffset * 2)
-      $0.sizeToFit()
+        $0.frame.size.width = totalWidth - distanceFromImageToText - imageSize
+        $0.sizeToFit()
     }
 
-    let textOffsetY = imageView.image != nil ? imageView.frame.origin.x + 3 : textOffsetX
+    let textOffsetX: CGFloat = imageSize + distanceFromImageToText
+    let wrapperViewWidth: CGFloat = titleLabel.frame.size.width + imageSize + distanceFromImageToText
+    wrapperView.frame = CGRect(x: (totalWidth - wrapperViewWidth) / 2, y: (Dimensions.height - imageSize) / 2, width: wrapperViewWidth, height: imageSize)
+    
+    imageView.frame = CGRect(x: 0, y: 0, width: imageSize, height: imageSize)
 
-    titleLabel.frame.origin = CGPoint(x: textOffsetX, y: textOffsetY)
+    titleLabel.frame.origin = CGPoint(x: textOffsetX, y: 0)
     subtitleLabel.frame.origin = CGPoint(x: textOffsetX, y: CGRectGetMaxY(titleLabel.frame) + 2.5)
 
     if subtitleLabel.text?.isEmpty ?? true {
-      titleLabel.center.y = imageView.center.y - 2.5
+      titleLabel.center.y = imageView.center.y
     }
   }
 
@@ -189,8 +201,7 @@ public class ShoutView: UIView {
 
   public func silent() {
     UIView.animateWithDuration(0.35, animations: {
-      self.frame.size.height = 0
-      self.backgroundView.frame.size.height = self.frame.height
+        self.backgroundView.alpha = 0
       }, completion: { finished in
         self.completion?()
         self.displayTimer.invalidate()
